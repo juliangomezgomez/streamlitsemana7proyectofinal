@@ -49,13 +49,10 @@ if archivo:
     cliente_seleccionado = st.selectbox("Cliente", df_final['origen_hoja'].unique())
     df_cliente = df_final[df_final['origen_hoja'] == cliente_seleccionado]
 
-    fecha_max = df_cliente['Fecha'].max()
-    fecha_min = fecha_max - timedelta(hours=24)
-    df_ultimas_24h = df_cliente[df_cliente['Fecha'] >= fecha_min]
-    normales = df_ultimas_24h[df_ultimas_24h['anomalias'] == 1]
-    anomalias = df_ultimas_24h[df_ultimas_24h['anomalias'] == -1]
+    normales = df_cliente[df_cliente['anomalias'] == 1]
+    anomalias = df_cliente[df_cliente['anomalias'] == -1]
 
-    st.header("2. Gráficos de Presión, Volumen y Temperatura")
+    st.header("2. Gráficos de Presión, Volumen y Temperatura (toda la data disponible)")
     fig, axs = plt.subplots(3, 1, figsize=(12, 6), sharex=True)
     for i, var in enumerate(['Presion', 'Volumen', 'Temperatura']):
         axs[i].plot(normales['Fecha'], normales[var], label=f"{var} (Normal)")
@@ -103,39 +100,42 @@ if archivo:
             clientes_recientes.append(cliente)
 
     if clientes_recientes:
-        cliente_nuevo = st.selectbox("Selecciona un cliente con anomalías recientes", clientes_recientes)
-        df_cliente2 = df_final[df_final['origen_hoja'] == cliente_nuevo]
-        fmax = df_cliente2['Fecha'].max()
-        fmin = fmax - timedelta(hours=24)
-        df_ultimas_24h_2 = df_cliente2[df_cliente2['Fecha'] >= fmin]
-        normales2 = df_ultimas_24h_2[df_ultimas_24h_2['anomalias'] == 1]
-        anomalias2 = df_ultimas_24h_2[df_ultimas_24h_2['anomalias'] == -1]
+        st.write("Clientes con anomalías recientes:")
+        seleccionados = st.multiselect("Selecciona uno o más clientes para ver gráficas de las últimas 24 horas", clientes_recientes)
 
-        st.subheader(f"Gráficas para {cliente_nuevo}")
-        fig2, axs2 = plt.subplots(3, 1, figsize=(12, 6), sharex=True)
-        for i, var in enumerate(['Presion', 'Volumen', 'Temperatura']):
-            axs2[i].plot(normales2['Fecha'], normales2[var], label=f"{var} (Normal)")
-            axs2[i].scatter(anomalias2['Fecha'], anomalias2[var], label=f"{var} (Anómalo)", color='red', marker='x')
-            axs2[i].set_ylabel(var)
-            axs2[i].legend()
-            axs2[i].grid(True)
-        axs2[2].set_xlabel("Fecha")
-        fig2.tight_layout()
-        st.pyplot(fig2)
+        for cliente_nuevo in seleccionados:
+            df_cliente2 = df_final[df_final['origen_hoja'] == cliente_nuevo]
+            fmax = df_cliente2['Fecha'].max()
+            fmin = fmax - timedelta(hours=24)
+            df_ultimas_24h_2 = df_cliente2[df_cliente2['Fecha'] >= fmin]
+            normales2 = df_ultimas_24h_2[df_ultimas_24h_2['anomalias'] == 1]
+            anomalias2 = df_ultimas_24h_2[df_ultimas_24h_2['anomalias'] == -1]
 
-        st.subheader("5. Descarga de datos en Excel")
-        df_excel = pd.DataFrame({'Fecha': df_ultimas_24h_2['Fecha']})
-        for var in variables:
-            df_excel[f'{var}_Normal'] = normales2.set_index('Fecha')[var].reindex(df_excel['Fecha'])
-            df_excel[f'{var}_Anomalo'] = anomalias2.set_index('Fecha')[var].reindex(df_excel['Fecha'])
+            st.subheader(f"Gráficas para {cliente_nuevo} (últimas 24 horas)")
+            fig2, axs2 = plt.subplots(3, 1, figsize=(12, 6), sharex=True)
+            for i, var in enumerate(['Presion', 'Volumen', 'Temperatura']):
+                axs2[i].plot(normales2['Fecha'], normales2[var], label=f"{var} (Normal)")
+                axs2[i].scatter(anomalias2['Fecha'], anomalias2[var], label=f"{var} (Anómalo)", color='red', marker='x')
+                axs2[i].set_ylabel(var)
+                axs2[i].legend()
+                axs2[i].grid(True)
+            axs2[2].set_xlabel("Fecha")
+            fig2.tight_layout()
+            st.pyplot(fig2)
 
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df_excel.to_excel(writer, index=False, sheet_name='Datos_Cliente')
-        output.seek(0)
+            st.subheader("5. Descarga de datos en Excel")
+            df_excel = pd.DataFrame({'Fecha': df_ultimas_24h_2['Fecha']})
+            for var in variables:
+                df_excel[f'{var}_Normal'] = normales2.set_index('Fecha')[var].reindex(df_excel['Fecha'])
+                df_excel[f'{var}_Anomalo'] = anomalias2.set_index('Fecha')[var].reindex(df_excel['Fecha'])
 
-        st.download_button("Descargar Excel", data=output,
-                           file_name=f"{cliente_nuevo}_ultimas24h.xlsx",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                df_excel.to_excel(writer, index=False, sheet_name='Datos_Cliente')
+            output.seek(0)
+
+            st.download_button("Descargar Excel", data=output,
+                               file_name=f"{cliente_nuevo}_ultimas24h.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     else:
         st.info(f"No hay clientes con anomalías en las últimas {rango_horas} horas.")
