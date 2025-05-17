@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 from datetime import timedelta
@@ -53,26 +53,18 @@ if archivo:
     anomalias = df_cliente[df_cliente['anomalias'] == -1]
 
     st.header("2. Gráficos de Presión, Volumen y Temperatura (toda la data disponible)")
-    fig, axs = plt.subplots(3, 1, figsize=(12, 6), sharex=True)
-    for i, var in enumerate(['Presion', 'Volumen', 'Temperatura']):
-        axs[i].plot(normales['Fecha'], normales[var], label=f"{var} (Normal)")
-        axs[i].scatter(anomalias['Fecha'], anomalias[var], label=f"{var} (Anómalo)", color='red', marker='x')
+        for var in ['Presion', 'Volumen', 'Temperatura']:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=normales['Fecha'], y=normales[var], mode='lines', name=f'{var} (Normal)'))
+        fig.add_trace(go.Scatter(x=anomalias['Fecha'], y=anomalias[var], mode='markers', name=f'{var} (Anómalo)', marker=dict(color='red', symbol='x')))
 
         y_max = normales[var].max()
         y_min = normales[var].min()
-        axs[i].axhline(y=y_max, color='green', linestyle='--', alpha=0.4, label='Máximo normal')
-        axs[i].axhline(y=y_min, color='orange', linestyle='--', alpha=0.4, label='Mínimo normal')
+        fig.add_hline(y=y_max, line_dash='dash', line_color='green', annotation_text='Máximo normal', annotation_position='top left')
+        fig.add_hline(y=y_min, line_dash='dash', line_color='orange', annotation_text='Mínimo normal', annotation_position='bottom left')
 
-        fecha_media = normales['Fecha'].median()
-        axs[i].text(fecha_media, y_max, f"{y_max:.2f}", va='bottom', ha='center', fontsize=8, color='green')
-        axs[i].text(fecha_media, y_min, f"{y_min:.2f}", va='top', ha='center', fontsize=8, color='orange')
-
-        axs[i].set_ylabel(var)
-        axs[i].legend()
-        axs[i].grid(True)
-    axs[2].set_xlabel("Fecha")
-    fig.tight_layout()
-    st.pyplot(fig)
+        fig.update_layout(title=f'{var} - Cliente: {cliente_seleccionado}', xaxis_title='Fecha', yaxis_title=var)
+        st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Últimos valores disponibles")
     ultima_fecha = df_cliente['Fecha'].max()
@@ -115,16 +107,13 @@ if archivo:
             anomalias2 = df_ultimas_24h_2[df_ultimas_24h_2['anomalias'] == -1]
 
             st.subheader(f"Gráficas para {cliente_nuevo} (últimas 24 horas)")
-            fig2, axs2 = plt.subplots(3, 1, figsize=(12, 6), sharex=True)
-            for i, var in enumerate(['Presion', 'Volumen', 'Temperatura']):
-                axs2[i].plot(normales2['Fecha'], normales2[var], label=f"{var} (Normal)")
-                axs2[i].scatter(anomalias2['Fecha'], anomalias2[var], label=f"{var} (Anómalo)", color='red', marker='x')
-                axs2[i].set_ylabel(var)
-                axs2[i].legend()
-                axs2[i].grid(True)
-            axs2[2].set_xlabel("Fecha")
-            fig2.tight_layout()
-            st.pyplot(fig2)
+                        for var in ['Presion', 'Volumen', 'Temperatura']:
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=normales2['Fecha'], y=normales2[var], mode='lines', name=f'{var} (Normal)'))
+                fig.add_trace(go.Scatter(x=anomalias2['Fecha'], y=anomalias2[var], mode='markers', name=f'{var} (Anómalo)', marker=dict(color='red', symbol='x')))
+                fig.update_layout(title=f'{var} - Cliente: {cliente_nuevo}', xaxis_title='Fecha', yaxis_title=var)
+                st.plotly_chart(fig, use_container_width=True)
 
     else:
         st.info(f"No hay clientes con anomalías en las últimas {rango_horas} horas.")
+
