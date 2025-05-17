@@ -1,37 +1,43 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.pyplot as plt
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
+from io import BytesIO
 
-st.title("Detección de Anomalías por Cliente")
+st.set_page_config(layout="wide", page_title="Detección de Anomalías por Cliente")
 
-uploaded_file = st.file_uploader("Carga tu archivo Excel con datos por cliente", type=["xlsx"])
+st.title("🔍 Detección de Anomalías en Datos por Cliente")
 
-if uploaded_file is not None:
+# Subir archivo
+uploaded_file = st.file_uploader("📤 Carga tu archivo Excel", type=["xlsx"])
+
+if uploaded_file:
     hojas = pd.read_excel(uploaded_file, sheet_name=None)
     dataframes = []
+
     for nombre_hoja, df in hojas.items():
         if not df.empty:
             df['origen_hoja'] = nombre_hoja
             dataframes.append(df)
-    df_final = pd.concat(dataframes, ignore_index=True)
-    
-    # Asegurarse que 'Fecha' sea datetime
-    df_final['Fecha'] = pd.to_datetime(df_final['Fecha'], errors='coerce')
-    df_final = df_final.dropna(subset=['Fecha'])
 
+    df_final = pd.concat(dataframes, ignore_index=True)
+
+    # Asegurar que 'Fecha' sea datetime
+    df_final['Fecha'] = pd.to_datetime(df_final['Fecha'])
+    df_final = df_final.sort_values(by='Fecha')
+
+    # Variables
     variables = ['Presion', 'Temperatura', 'Volumen']
     df_final['anomalias'] = np.nan
 
+    # Detección de anomalías
     for cliente, df_grupo in df_final.groupby('origen_hoja'):
         df_grupo_limpio = df_grupo[variables].replace([np.inf, -np.inf], np.nan).dropna()
-
         if len(df_grupo_limpio) < 20:
             continue
-
         scaler = StandardScaler()
         datos_scaled = scaler.fit_transform(df_grupo_limpio)
 
@@ -40,68 +46,84 @@ if uploaded_file is not None:
         IQR = Q3 - Q1
         outliers_mask = ((df_grupo_limpio < (Q1 - 1.5 * IQR)) | (df_grupo_limpio > (Q3 + 1.5 * IQR)))
         contamination = outliers_mask.any(axis=1).mean()
-
         if (IQR == 0).all() or contamination == 0:
             contamination = 0.001
-
         model = IsolationForest(contamination=contamination, random_state=42)
         model.fit(datos_scaled)
         predicciones = model.predict(datos_scaled)
-
         df_final.loc[df_grupo_limpio.index, 'anomalias'] = predicciones
 
     df_final['anomalias'] = df_final['anomalias'].fillna(1).astype(int)
 
-    # Selector de cliente
-    clientes = df_final['origen_hoja'].unique()
-    cliente_seleccionado = st.selectbox("Selecciona un cliente", clientes)
+    # Selección de cliente
+    clientes_con_anomalias = df_final[df_final['anomalias'] == -1]['origen_hoja'].unique().tolist()
+    cliente_seleccionado = st.selectbox("🧾 Selecciona un cliente", sorted(df_final['origen_hoja'].unique()))
 
     df_cliente = df_final[df_final['origen_hoja'] == cliente_seleccionado]
 
-    # Gráficas con líneas max y min y anomalías
-    fig, axs = plt.subplots(len(variables), 1, figsize=(12, 4 * len(variables)), sharex=True)
+    # Último valor (reloj)
+    ultimo = df_cliente.sort_values('Fecha').iloc[-1]
+    st.subheader("⏱ Últimos valores disponibles")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Presión", f"{ultimo['Presion']}")
+    col2.metric("Temperatura", f"{ultimo['Temperatura']}")
+    col3.metric("Volumen", f"{ultimo['Volumen']}")
 
-    for i, var in enumerate(variables):
-        ax = axs[i] if len(variables) > 1 else axs
-        sns.scatterplot(
-            data=df_cliente,
-            x='Fecha',
-            y=var,
-            hue='anomalias',
-            palette={1: 'blue', -1: 'red'},
-            ax=ax,
-            legend=(i == 0),
-            s=40
-        )
-        ax.set_title(f'{var} vs Fecha - Cliente: {cliente_seleccionado}')
-        ax.set_ylabel(var)
-        ax.grid(True)
+    st.subheader("📊 Gráficas de Variables con Líneas de Máximos y Mínimos (sin anomalías)")
 
-        # Líneas de máximo y mínimo
-        ax.axhline(df_cliente[var].max(), color='green', linestyle='--', label='Máximo' if i == 0 else "")
-        ax.axhline(df_cliente[var].min(), color='orange', linestyle='--', label='Mínimo' if i == 0 else "")
-        if i == 0:
-            ax.legend()
+    fig, axs = plt.subplots(3, 1, figsize=(14, 10), sharex=True)
+    df_normal = df_cliente[df_cliente['anomalias'] == 1]
 
-    plt.xticks(rotation=45)
+    for i, variable in enumerate(variables):
+        ax = axs[i]
+        sns.scatterplot(data=df_cliente, x='Fecha', y=variable,
+                        hue='anomalias', palette={1: 'blue', -1: 'red'}, ax=ax)
+        ax.axhline(df_normal[variable].max(), color='green', linestyle='--', label='Máximo (sin anomalías)')
+        ax.axhline(df_normal[variable].min(), color='orange', linestyle='--', label='Mínimo (sin anomalías)')
+        ax.set_title(f'{variable} - {cliente_seleccionado}')
+        ax.legend()
+
     st.pyplot(fig)
 
-    # Anomalías en últimas 2 horas de datos
-    fecha_max_global = df_final['Fecha'].max()
-    dos_horas_atras = fecha_max_global - pd.Timedelta(hours=2)
+    # Último día de datos
+    max_fecha = df_cliente['Fecha'].max()
+    fecha_inicio = max_fecha.normalize()
 
-    anomalias_ultimas_2h = df_final[
-        (df_final['anomalias'] == -1) &
-        (df_final['Fecha'] >= dos_horas_atras) &
-        (df_final['Fecha'] <= fecha_max_global)
-    ]
+    df_ultimo_dia = df_cliente[df_cliente['Fecha'] >= fecha_inicio]
+    df_normales_dia = df_ultimo_dia[df_ultimo_dia['anomalias'] == 1]
+    df_anomalos_dia = df_ultimo_dia[df_ultimo_dia['anomalias'] == -1]
 
-    clientes_con_anomalias_ultimas_2h = anomalias_ultimas_2h.groupby('origen_hoja').size().reset_index(name='Cantidad Anomalías')
+    st.subheader("📅 Datos del último día")
+    with st.expander("📈 Gráficas de datos normales"):
+        for var in variables:
+            st.line_chart(df_normales_dia.set_index('Fecha')[var])
 
-    st.subheader("Clientes con anomalías en las últimas 2 horas de datos")
+    with st.expander("🚨 Gráficas de datos anómalos"):
+        for var in variables:
+            st.line_chart(df_anomalos_dia.set_index('Fecha')[var])
 
-    if clientes_con_anomalias_ultimas_2h.empty:
-        st.write("No se detectaron anomalías en las últimas 2 horas para ningún cliente.")
+    st.markdown("### 📥 Descargar datos del último día")
+    col_a, col_b = st.columns(2)
+
+    def generar_csv(df):
+        return df.to_csv(index=False).encode('utf-8')
+
+    col_a.download_button("⬇️ Descargar normales", generar_csv(df_normales_dia),
+                          file_name=f"{cliente_seleccionado}_normales.csv", mime='text/csv')
+    col_b.download_button("⬇️ Descargar anómalos", generar_csv(df_anomalos_dia),
+                          file_name=f"{cliente_seleccionado}_anomalos.csv", mime='text/csv')
+
+    # Alerta de anomalías en últimas 2 horas de datos
+    st.subheader("🚨 Alerta de anomalías en últimas 2 horas (según los datos)")
+
+    ultimas_2h = df_cliente['Fecha'].max() - pd.Timedelta(hours=2)
+    anomalias_2h = df_cliente[(df_cliente['Fecha'] >= ultimas_2h) & (df_cliente['anomalias'] == -1)]
+
+    if not anomalias_2h.empty:
+        st.error(f"⚠️ {cliente_seleccionado} tiene anomalías en las últimas 2 horas.")
+        st.dataframe(anomalias_2h)
     else:
-        st.dataframe(clientes_con_anomalias_ultimas_2h)
+        st.success("✅ No se encontraron anomalías en las últimas 2 horas para este cliente.")
 
+else:
+    st.info("Por favor sube un archivo Excel con varias hojas, una por cliente.")
