@@ -90,17 +90,20 @@ if archivo:
 
     st.header(f"4. Clientes con anomalías en las últimas {rango_horas} horas")
     clientes_recientes = []
+    resumen_clientes = []
     for cliente, df_c in df_final.groupby('origen_hoja'):
-        if df_c['anomalias'].eq(-1).sum() == 0:
-            continue
         tmax = df_c['Fecha'].max()
         tmin = tmax - timedelta(hours=rango_horas)
         df_rango = df_c[df_c['Fecha'] >= tmin]
-        if (df_rango['anomalias'] == -1).any():
+        total_anomalias = df_rango['anomalias'].eq(-1).sum()
+        if total_anomalias > 0:
             clientes_recientes.append(cliente)
+            resumen_clientes.append({"Cliente": cliente, "Anomalías recientes": total_anomalias})
 
     if clientes_recientes:
-        st.write("Clientes con anomalías recientes:")
+        st.write("Listado de clientes con anomalías recientes:")
+        st.dataframe(pd.DataFrame(resumen_clientes))
+
         seleccionados = st.multiselect("Selecciona uno o más clientes para ver gráficas de las últimas 24 horas", clientes_recientes)
 
         for cliente_nuevo in seleccionados:
