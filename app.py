@@ -135,11 +135,14 @@ if archivo:
             'Anomalías en el mes': total_anomalias
         })
     df_resumen_consumo = pd.DataFrame(resumen_consumo).sort_values(by='Consumo estimado (scf)', ascending=False)
-    min_consumo = st.number_input("Filtrar por consumo mínimo (scf)", min_value=0.0, value=0.0)
-    min_anomalias = st.number_input("Filtrar por mínimo de anomalías", min_value=0, value=0)
-    filtro_df = df_resumen_consumo[(df_resumen_consumo['Consumo estimado (scf)'] >= min_consumo) &
-                                   (df_resumen_consumo['Anomalías en el mes'] >= min_anomalias)]
-    st.dataframe(filtro_df)
+    st.dataframe(df_resumen_consumo)
+    csv_consumo = df_resumen_consumo.to_csv(index=False)
+    st.download_button(
+        label="Descargar tabla de consumo mensual",
+        data=csv_consumo,
+        file_name="consumo_mensual_clientes.csv",
+        mime="text/csv"
+    )
 
     st.header("7. Exportar variable de un cliente a CSV")
     cliente_exportar = st.selectbox("Selecciona un cliente para exportar", df_final['origen_hoja'].unique())
