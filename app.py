@@ -127,17 +127,62 @@ if archivo:
     resumen_consumo = []
     for cliente, df_c in df_mes.groupby('origen_hoja'):
         dias = df_c['Fecha'].dt.normalize().nunique()
-        consumo_promedio = df_c['Volumen'].mean() * dias if dias > 0 else 0
+        vol_mensual = df_c['Volumen'].mean() * dias if dias > 0 else 0
+        presion_mensual = df_c['Presion'].mean()
         total_anomalias = df_c['anomalias'].eq(-1).sum()
+
+        df_cliente_todo = df_final[df_final['origen_hoja'] == cliente]
+        ultima_fecha = df_cliente_todo['Fecha'].max()
+        actual = df_cliente_todo[df_cliente_todo['Fecha'] == ultima_fecha].iloc[-1]
+
+        vol_actual = actual['Volumen']
+        presion_actual = actual['Presion']
+
+        vol_estado = 'Normal'
+        if vol_mensual > 0:
+            if vol_actual > 1.8 * vol_mensual:
+                vol_estado = '80% más alto'
+            elif vol_actual < 0.2 * vol_mensual:
+                vol_estado = '80% más bajo'
+
+        presion_estado = 'Normal'
+        if presion_mensual > 0:
+            if presion_actual > 1.8 * presion_mensual:
+                presion_estado = '80% más alto'
+            elif presion_actual < 0.2 * presion_mensual:
+                presion_estado = '80% más bajo'
+
         resumen_consumo.append({
             'Cliente': cliente,
-            'Consumo estimado (scf)': round(consumo_promedio, 2),
-            'Anomalías en el mes': total_anomalias
+            'Consumo estimado (scf)': round(vol_mensual, 2),
+            'Anomalías en el mes': total_anomalias,
+            'Estado Volumen': vol_estado,
+            'Estado Presion': presion_estado
         })
+
     df_resumen_consumo = pd.DataFrame(resumen_consumo).sort_values(by='Consumo estimado (scf)', ascending=False)
     st.dataframe(df_resumen_consumo)
     csv_consumo = df_resumen_consumo.to_csv(index=False)
     st.download_button(
+        label="Descargar tabla de consumo mensual",
+        data=csv_consumo,
+        file_name="consumo_mensual_clientes.csv",
+        mime="text/csv"
+    )
+
+    st.header("Paso adicional: Filtrar desviaciones de consumo/presión")
+    df_desv = df_resumen_consumo[(df_resumen_consumo['Estado Volumen'] != 'Normal') | (df_resumen_consumo['Estado Presion'] != 'Normal')]
+    st.dataframe(df_desv)
+    csv_desv = df_desv.to_csv(index=False)
+    st.download_button(
+        label="Descargar clientes con desviaciones",
+        data=csv_desv,
+        file_name="clientes_con_desviaciones.csv",
+        mime="text/csv"
+    )
+
+    st.header("7. Exportar variable de un cliente a CSV")
+
         label="Descargar tabla de consumo mensual",
         data=csv_consumo,
         file_name="consumo_mensual_clientes.csv",
