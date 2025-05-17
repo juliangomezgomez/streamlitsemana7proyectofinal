@@ -127,18 +127,15 @@ if archivo:
             st.pyplot(fig2)
 
             st.subheader("5. Descarga de datos en Excel")
-            df_excel = pd.DataFrame({'Fecha': df_ultimas_24h_2['Fecha']})
-            for var in variables:
-                df_excel[f'{var}_Normal'] = normales2.set_index('Fecha')[var].reindex(df_excel['Fecha'])
-                df_excel[f'{var}_Anomalo'] = anomalias2.set_index('Fecha')[var].reindex(df_excel['Fecha'])
-
-            output = io.BytesIO()
+            df_excel = df_ultimas_24h_2[['Fecha', 'Presion', 'Volumen', 'Temperatura']].copy()
+df_excel['Estado'] = df_ultimas_24h_2['anomalias'].map({1: 'Normal', -1: 'Anómalo'})
+output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 df_excel.to_excel(writer, index=False, sheet_name='Datos_Cliente')
             output.seek(0)
 
-            st.download_button("Descargar Excel", data=output,
-                               file_name=f"{cliente_nuevo}_ultimas24h.xlsx",
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            st.download_button("Descargar CSV", data=df_excel.to_csv(index=False).encode('utf-8'),
+                   file_name=f"{cliente_nuevo}_ultimas24h.csv",
+                   mime="text/csv")
     else:
         st.info(f"No hay clientes con anomalías en las últimas {rango_horas} horas.")
