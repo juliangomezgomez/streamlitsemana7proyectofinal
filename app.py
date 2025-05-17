@@ -127,9 +127,9 @@ if archivo:
             st.pyplot(fig2)
 
             st.subheader("5. Datos y descarga (CSV)")
-            df_excel = df_ultimas_24h_2[['Fecha', 'Presion', 'Volumen', 'Temperatura']].copy()
-df_excel['Estado'] = df_ultimas_24h_2['anomalias'].map({1: 'Normal', -1: 'Anómalo'})
-st.dataframe(df_excel)
+                        df_excel = df_ultimas_24h_2[['Fecha', 'Presion', 'Volumen', 'Temperatura']].copy()
+            df_excel['Estado'] = df_ultimas_24h_2['anomalias'].map({1: 'Normal', -1: 'Anómalo'})
+            st.dataframe(df_excel)
             
 
             st.download_button("Descargar CSV", data=df_excel.to_csv(index=False).encode('utf-8'),
