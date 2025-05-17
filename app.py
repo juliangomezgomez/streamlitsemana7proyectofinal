@@ -114,7 +114,7 @@ if archivo:
             normales2 = df_ultimas_24h_2[df_ultimas_24h_2['anomalias'] == 1]
             anomalias2 = df_ultimas_24h_2[df_ultimas_24h_2['anomalias'] == -1]
 
-                        st.subheader(f"Gráficas para {cliente_nuevo} (últimas 24 horas)")
+            st.subheader(f"Gráficas para {cliente_nuevo} (últimas 24 horas)")
             fig2, axs2 = plt.subplots(3, 1, figsize=(12, 6), sharex=True)
             for i, var in enumerate(['Presion', 'Volumen', 'Temperatura']):
                 axs2[i].plot(normales2['Fecha'], normales2[var], label=f"{var} (Normal)")
@@ -126,7 +126,5 @@ if archivo:
             fig2.tight_layout()
             st.pyplot(fig2)
 
-                                                            
     else:
-                st.info(f"No hay clientes con anomalías en las últimas {rango_horas} horas.")
-
+        st.info(f"No hay clientes con anomalías en las últimas {rango_horas} horas.")
