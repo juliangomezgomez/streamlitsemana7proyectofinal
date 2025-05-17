@@ -122,7 +122,29 @@ if archivo:
         st.info(f"No hay clientes con anomalías en las últimas {rango_horas} horas.")
 
     st.divider()
-st.header("6. Consumo mensual por cliente y desviaciones")
+    st.header("6. Consumo mensual por cliente y desviaciones")
+
+    st.divider()
+    st.header("7. Exportar variable de un cliente a CSV")
+    cliente_exportar = st.selectbox("Selecciona un cliente para exportar", df_final['origen_hoja'].unique())
+    variable_exportar = st.selectbox("Selecciona una variable", variables)
+
+    fecha_min_exp, fecha_max_exp = st.date_input("Selecciona rango de fechas", value=(df_final['Fecha'].min(), df_final['Fecha'].max()))
+    df_exp = df_final[(df_final['origen_hoja'] == cliente_exportar) &
+                      (df_final['Fecha'].dt.date >= fecha_min_exp) &
+                      (df_final['Fecha'].dt.date <= fecha_max_exp)][['Fecha', variable_exportar, 'anomalias']].copy()
+    df_exp['Cliente'] = cliente_exportar
+    df_exp['Variable'] = variable_exportar
+    df_exp['Estado'] = df_exp['anomalias'].map({1: 'Normal', -1: 'Anómalo'})
+    df_exp = df_exp[['Fecha', 'Cliente', 'Variable', variable_exportar, 'Estado']]
+    st.dataframe(df_exp)
+    csv_data = df_exp.to_csv(index=False)
+    st.download_button(
+        label="Descargar CSV",
+        data=csv_data,
+        file_name=f"{cliente_exportar}_{variable_exportar}.csv",
+        mime="text/csv"
+    )
     ultimo_mes = df_final['Fecha'].max() - pd.DateOffset(days=30)
     df_mes = df_final[df_final['Fecha'] >= ultimo_mes]
     resumen_consumo = []
@@ -172,7 +194,7 @@ st.header("6. Consumo mensual por cliente y desviaciones")
     )
 
     st.divider()
-st.header("8. Filtrar clientes con desviaciones extremas")
+    st.header("8. Filtrar clientes con desviaciones extremas")
     df_desv = df_resumen_consumo[(df_resumen_consumo['Estado Volumen'] != 'Normal') | (df_resumen_consumo['Estado Presion'] != 'Normal')]
     st.dataframe(df_desv)
     csv_desv = df_desv.to_csv(index=False)
@@ -185,22 +207,4 @@ st.header("8. Filtrar clientes con desviaciones extremas")
 
     
 
-    st.divider()
-st.header("7. Exportar variable de un cliente a CSV")
-    cliente_exportar = st.selectbox("Selecciona un cliente para exportar", df_final['origen_hoja'].unique())
-    variable_exportar = st.selectbox("Selecciona una variable", variables)
-
-    fecha_min_exp, fecha_max_exp = st.date_input("Selecciona rango de fechas", value=(df_final['Fecha'].min(), df_final['Fecha'].max()))
-    df_exp = df_final[(df_final['origen_hoja'] == cliente_exportar) &
-                      (df_final['Fecha'].dt.date >= fecha_min_exp) &
-                      (df_final['Fecha'].dt.date <= fecha_max_exp)][['Fecha', variable_exportar, 'anomalias']].copy()
-    df_exp['Estado'] = df_exp['anomalias'].map({1: 'Normal', -1: 'Anómalo'})
-    df_exp = df_exp[['Fecha', variable_exportar, 'Estado']]
-    st.dataframe(df_exp)
-    csv_data = df_exp.to_csv(index=False)
-    st.download_button(
-        label="Descargar CSV",
-        data=csv_data,
-        file_name=f"{cliente_exportar}_{variable_exportar}.csv",
-        mime="text/csv"
-    )
+    
