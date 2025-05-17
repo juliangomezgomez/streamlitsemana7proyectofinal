@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 from datetime import timedelta
-import io
 
 st.set_page_config(layout="wide")
 st.title("Detección de Anomalías por Cliente")
@@ -53,17 +52,20 @@ if archivo:
     anomalias = df_cliente[df_cliente['anomalias'] == -1]
 
     st.header("2. Gráficos de Presión, Volumen y Temperatura (toda la data disponible)")
-        for var in ['Presion', 'Volumen', 'Temperatura']:
+    for var in ['Presion', 'Volumen', 'Temperatura']:
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=normales['Fecha'], y=normales[var], mode='lines', name=f'{var} (Normal)'))
-        fig.add_trace(go.Scatter(x=anomalias['Fecha'], y=anomalias[var], mode='markers', name=f'{var} (Anómalo)', marker=dict(color='red', symbol='x')))
+        if not normales.empty:
+            fig.add_trace(go.Scatter(x=normales['Fecha'], y=normales[var], mode='lines', name=f'{var} (Normal)'))
+        if not anomalias.empty:
+            fig.add_trace(go.Scatter(x=anomalias['Fecha'], y=anomalias[var], mode='markers', name=f'{var} (Anómalo)', marker=dict(color='red', symbol='x')))
 
-        y_max = normales[var].max()
-        y_min = normales[var].min()
-        fig.add_hline(y=y_max, line_dash='dash', line_color='green', annotation_text='Máximo normal', annotation_position='top left')
-        fig.add_hline(y=y_min, line_dash='dash', line_color='orange', annotation_text='Mínimo normal', annotation_position='bottom left')
+        if not normales.empty:
+            y_max = normales[var].max()
+            y_min = normales[var].min()
+            fig.add_hline(y=y_max, line_dash='dash', line_color='green', annotation_text='Máximo normal', annotation_position='top left')
+            fig.add_hline(y=y_min, line_dash='dash', line_color='orange', annotation_text='Mínimo normal', annotation_position='bottom left')
 
-        fig.update_layout(title=f'{var} - Cliente: {cliente_seleccionado}', xaxis_title='Fecha', yaxis_title=var)
+        fig.update_layout(title=f'{var} - Cliente: {cliente_seleccionado}', xaxis_title='Fecha', yaxis_title=var, template='plotly_white', hovermode='x unified')
         st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Últimos valores disponibles")
@@ -107,13 +109,14 @@ if archivo:
             anomalias2 = df_ultimas_24h_2[df_ultimas_24h_2['anomalias'] == -1]
 
             st.subheader(f"Gráficas para {cliente_nuevo} (últimas 24 horas)")
-                        for var in ['Presion', 'Volumen', 'Temperatura']:
+            for var in ['Presion', 'Volumen', 'Temperatura']:
                 fig = go.Figure()
-                fig.add_trace(go.Scatter(x=normales2['Fecha'], y=normales2[var], mode='lines', name=f'{var} (Normal)'))
-                fig.add_trace(go.Scatter(x=anomalias2['Fecha'], y=anomalias2[var], mode='markers', name=f'{var} (Anómalo)', marker=dict(color='red', symbol='x')))
-                fig.update_layout(title=f'{var} - Cliente: {cliente_nuevo}', xaxis_title='Fecha', yaxis_title=var)
+                if not normales2.empty:
+                    fig.add_trace(go.Scatter(x=normales2['Fecha'], y=normales2[var], mode='lines', name=f'{var} (Normal)'))
+                if not anomalias2.empty:
+                    fig.add_trace(go.Scatter(x=anomalias2['Fecha'], y=anomalias2[var], mode='markers', name=f'{var} (Anómalo)', marker=dict(color='red', symbol='x')))
+                fig.update_layout(title=f'{var} - Cliente: {cliente_nuevo}', xaxis_title='Fecha', yaxis_title=var, template='plotly_white', hovermode='x unified')
                 st.plotly_chart(fig, use_container_width=True)
 
     else:
         st.info(f"No hay clientes con anomalías en las últimas {rango_horas} horas.")
-
