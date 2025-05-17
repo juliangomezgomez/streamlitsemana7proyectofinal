@@ -120,3 +120,42 @@ if archivo:
 
     else:
         st.info(f"No hay clientes con anomalías en las últimas {rango_horas} horas.")
+
+            st.header("7. Exportar variable de un cliente a CSV")
+    cliente_exportar = st.selectbox("Selecciona un cliente para exportar", df_final['origen_hoja'].unique())
+    variable_exportar = st.selectbox("Selecciona una variable", variables)
+
+    fecha_min_exp, fecha_max_exp = st.date_input("Selecciona rango de fechas", value=(df_final['Fecha'].min(), df_final['Fecha'].max()))
+    df_exp = df_final[(df_final['origen_hoja'] == cliente_exportar) &
+                      (df_final['Fecha'].dt.date >= fecha_min_exp) &
+                      (df_final['Fecha'].dt.date <= fecha_max_exp)][['Fecha', variable_exportar, 'anomalias']].copy()
+    df_exp['Estado'] = df_exp['anomalias'].map({1: 'Normal', -1: 'Anómalo'})
+    df_exp = df_exp[['Fecha', variable_exportar, 'Estado']]
+    st.dataframe(df_exp)
+    csv_data = df_exp.to_csv(index=False)
+    st.download_button(
+        label="Descargar CSV",
+        data=csv_data,
+        file_name=f"{cliente_exportar}_{variable_exportar}.csv",
+        mime="text/csv"
+    )
+
+        st.header("6. Consumo mensual y anomalías por cliente")
+    ultimo_mes = df_final['Fecha'].max() - pd.DateOffset(days=30)
+    df_mes = df_final[df_final['Fecha'] >= ultimo_mes]
+    resumen_consumo = []
+    for cliente, df_c in df_mes.groupby('origen_hoja'):
+        dias = df_c['Fecha'].dt.normalize().nunique()
+        consumo_promedio = df_c['Volumen'].mean() * dias if dias > 0 else 0
+        total_anomalias = df_c['anomalias'].eq(-1).sum()
+        resumen_consumo.append({
+            'Cliente': cliente,
+            'Consumo estimado (scf)': round(consumo_promedio, 2),
+            'Anomalías en el mes': total_anomalias
+        })
+    df_resumen_consumo = pd.DataFrame(resumen_consumo).sort_values(by='Consumo estimado (scf)', ascending=False)
+    min_consumo = st.number_input("Filtrar por consumo mínimo (scf)", min_value=0.0, value=0.0)
+    min_anomalias = st.number_input("Filtrar por mínimo de anomalías", min_value=0, value=0)
+    filtro_df = df_resumen_consumo[(df_resumen_consumo['Consumo estimado (scf)'] >= min_consumo) &
+                                   (df_resumen_consumo['Anomalías en el mes'] >= min_anomalias)]
+    st.dataframe(filtro_df)
