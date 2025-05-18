@@ -153,10 +153,15 @@ if archivo:
 
         df_cliente_todo = df_final[df_final['origen_hoja'] == cliente]
         ultima_fecha = df_cliente_todo['Fecha'].max()
-        actual = df_cliente_todo[df_cliente_todo['Fecha'] == ultima_fecha].iloc[-1]
+        df_actual = df_cliente_todo[df_cliente_todo['Fecha'] == ultima_fecha]
+        if not df_actual.empty:
+            actual = df_actual.iloc[-1]
 
-        vol_actual = actual['Volumen']
-        presion_actual = actual['Presion']
+                    vol_actual = actual['Volumen']
+            presion_actual = actual['Presion']
+        else:
+            vol_actual = np.nan
+            presion_actual = np.nan
 
         vol_estado = 'Normal'
         if vol_mensual > 0:
@@ -203,3 +208,4 @@ if archivo:
     
 
     
+
