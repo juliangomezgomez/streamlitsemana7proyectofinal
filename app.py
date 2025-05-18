@@ -58,13 +58,11 @@ if archivo:
             fig.add_trace(go.Scatter(x=normales['Fecha'], y=normales[var], mode='lines', name=f'{var} (Normal)'))
         if not anomalias.empty:
             fig.add_trace(go.Scatter(x=anomalias['Fecha'], y=anomalias[var], mode='markers', name=f'{var} (Anómalo)', marker=dict(color='red', symbol='x')))
-
         if not normales.empty:
             y_max = normales[var].max()
             y_min = normales[var].min()
             fig.add_hline(y=y_max, line_dash='dash', line_color='green', annotation_text='Máximo normal', annotation_position='top left')
             fig.add_hline(y=y_min, line_dash='dash', line_color='orange', annotation_text='Mínimo normal', annotation_position='bottom left')
-
         fig.update_layout(title=f'{var} - Cliente: {cliente_seleccionado}', xaxis_title='Fecha', yaxis_title=var, template='plotly_white', hovermode='x unified')
         st.plotly_chart(fig, use_container_width=True)
 
@@ -117,95 +115,3 @@ if archivo:
                     fig.add_trace(go.Scatter(x=anomalias2['Fecha'], y=anomalias2[var], mode='markers', name=f'{var} (Anómalo)', marker=dict(color='red', symbol='x')))
                 fig.update_layout(title=f'{var} - Cliente: {cliente_nuevo}', xaxis_title='Fecha', yaxis_title=var, template='plotly_white', hovermode='x unified')
                 st.plotly_chart(fig, use_container_width=True)
-
-    else:
-        st.info(f"No hay clientes con anomalías en las últimas {rango_horas} horas.")
-
-    st.divider()
-    st.header("5. Exportar variable de un cliente a CSV")
-    cliente_exportar = st.selectbox("Selecciona un cliente para exportar", df_final['origen_hoja'].unique())
-    variable_exportar = st.selectbox("Selecciona una variable", variables)
-
-    fecha_min_exp, fecha_max_exp = st.date_input("Selecciona rango de fechas", value=(df_final['Fecha'].min(), df_final['Fecha'].max()))
-    df_exp = df_final[(df_final['origen_hoja'] == cliente_exportar) &
-                      (df_final['Fecha'].dt.date >= fecha_min_exp) &
-                      (df_final['Fecha'].dt.date <= fecha_max_exp)][['Fecha', variable_exportar, 'anomalias']].copy()
-    df_exp['Cliente'] = cliente_exportar
-    df_exp['Variable'] = variable_exportar
-    df_exp['Estado'] = df_exp['anomalias'].map({1: 'Normal', -1: 'Anómalo'})
-    df_exp = df_exp[['Fecha', 'Cliente', 'Variable', variable_exportar, 'Estado']]
-    st.dataframe(df_exp)
-    csv_data = df_exp.to_csv(index=False)
-    st.download_button(
-        label="Descargar CSV",
-        data=csv_data,
-        file_name=f"{cliente_exportar}_{variable_exportar}.csv",
-        mime="text/csv"
-    )
-    ultimo_mes = df_final['Fecha'].max() - pd.DateOffset(days=30)
-    df_mes = df_final[df_final['Fecha'] >= ultimo_mes]
-    resumen_consumo = []
-    for cliente, df_c in df_mes.groupby('origen_hoja'):
-        dias = df_c['Fecha'].dt.normalize().nunique()
-        vol_mensual = df_c['Volumen'].mean() * dias if dias > 0 else 0
-        presion_mensual = df_c['Presion'].mean()
-        total_anomalias = df_c['anomalias'].eq(-1).sum()
-
-        df_cliente_todo = df_final[df_final['origen_hoja'] == cliente]
-        ultima_fecha = df_cliente_todo['Fecha'].max()
-        df_actual = df_cliente_todo[df_cliente_todo['Fecha'] == ultima_fecha]
-        if not df_actual.empty:
-            actual = df_actual.iloc[-1]
-
-                    vol_actual = actual['Volumen']
-            presion_actual = actual['Presion']
-        else:
-            vol_actual = np.nan
-            presion_actual = np.nan
-
-        vol_estado = 'Normal'
-        if vol_mensual > 0:
-            if vol_actual > 1.8 * vol_mensual:
-                vol_estado = '80% más alto'
-            elif vol_actual < 0.2 * vol_mensual:
-                vol_estado = '80% más bajo'
-
-        presion_estado = 'Normal'
-        if presion_mensual > 0:
-            if presion_actual > 1.8 * presion_mensual:
-                presion_estado = '80% más alto'
-            elif presion_actual < 0.2 * presion_mensual:
-                presion_estado = '80% más bajo'
-
-        resumen_consumo.append({
-            'Cliente': cliente,
-            'Consumo estimado (scf)': round(vol_mensual, 2),
-            'Anomalías en el mes': total_anomalias,
-            'Estado Volumen': vol_estado,
-            'Estado Presion': presion_estado
-        })
-
-    df_resumen_consumo = pd.DataFrame(resumen_consumo)
-
-    st.divider()
-    st.header("6. Consumo de clientes mensual")
-    df_consumo_mensual = df_resumen_consumo[['Cliente', 'Consumo estimado (scf)', 'Anomalías en el mes']].copy()
-    df_consumo_mensual = df_consumo_mensual.sort_values(by='Consumo estimado (scf)', ascending=False)
-    st.dataframe(df_consumo_mensual)
-
-    st.divider()
-    st.header("7. Filtrar clientes con desviaciones extremas")
-    df_desv = df_resumen_consumo[(df_resumen_consumo['Estado Volumen'] != 'Normal') | (df_resumen_consumo['Estado Presion'] != 'Normal')]
-    st.dataframe(df_desv)
-    csv_desv = df_desv.to_csv(index=False)
-    st.download_button(
-        label="Descargar clientes con desviaciones",
-        data=csv_desv,
-        file_name="clientes_con_desviaciones.csv",
-        mime="text/csv"
-    )
-
-    
-
-    
-
