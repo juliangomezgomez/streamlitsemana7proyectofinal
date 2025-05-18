@@ -122,10 +122,7 @@ if archivo:
         st.info(f"No hay clientes con anomalías en las últimas {rango_horas} horas.")
 
     st.divider()
-    st.header("6. Consumo mensual por cliente y desviaciones")
-
-    st.divider()
-    st.header("7. Exportar variable de un cliente a CSV")
+    st.header("5. Exportar variable de un cliente a CSV")
     cliente_exportar = st.selectbox("Selecciona un cliente para exportar", df_final['origen_hoja'].unique())
     variable_exportar = st.selectbox("Selecciona una variable", variables)
 
@@ -183,18 +180,10 @@ if archivo:
             'Estado Presion': presion_estado
         })
 
-    df_resumen_consumo = pd.DataFrame(resumen_consumo).sort_values(by='Consumo estimado (scf)', ascending=False)
-    st.dataframe(df_resumen_consumo)
-    csv_consumo = df_resumen_consumo.to_csv(index=False)
-    st.download_button(
-        label="Descargar tabla de consumo mensual",
-        data=csv_consumo,
-        file_name="consumo_mensual_clientes.csv",
-        mime="text/csv"
-    )
+    
 
     st.divider()
-    st.header("8. Filtrar clientes con desviaciones extremas")
+    st.header("6. Filtrar clientes con desviaciones extremas")
     df_desv = df_resumen_consumo[(df_resumen_consumo['Estado Volumen'] != 'Normal') | (df_resumen_consumo['Estado Presion'] != 'Normal')]
     st.dataframe(df_desv)
     csv_desv = df_desv.to_csv(index=False)
