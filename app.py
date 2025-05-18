@@ -180,7 +180,7 @@ if archivo:
             'Estado Presion': presion_estado
         })
 
-    
+    df_resumen_consumo = pd.DataFrame(resumen_consumo)
 
     st.divider()
     st.header("6. Filtrar clientes con desviaciones extremas")
