@@ -183,7 +183,13 @@ if archivo:
     df_resumen_consumo = pd.DataFrame(resumen_consumo)
 
     st.divider()
-    st.header("6. Filtrar clientes con desviaciones extremas")
+    st.header("6. Consumo de clientes mensual")
+    df_consumo_mensual = df_resumen_consumo[['Cliente', 'Consumo estimado (scf)', 'Anomalías en el mes']].copy()
+    df_consumo_mensual = df_consumo_mensual.sort_values(by='Consumo estimado (scf)', ascending=False)
+    st.dataframe(df_consumo_mensual)
+
+    st.divider()
+    st.header("7. Filtrar clientes con desviaciones extremas")
     df_desv = df_resumen_consumo[(df_resumen_consumo['Estado Volumen'] != 'Normal') | (df_resumen_consumo['Estado Presion'] != 'Normal')]
     st.dataframe(df_desv)
     csv_desv = df_desv.to_csv(index=False)
